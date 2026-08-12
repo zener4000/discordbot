@@ -11,6 +11,7 @@ const {
   EmbedBuilder,
   Events,
   GatewayIntentBits,
+  MessageFlags,
   ModalBuilder,
   Partials,
   PermissionFlagsBits,
@@ -443,12 +444,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.user.id !== interaction.guild.ownerId) {
         await interaction.reply({
           content: 'Solo el propietario del servidor puede configurar los tickets.',
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
         return;
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const config = {
         panelChannelId: interaction.options.getChannel('canal_panel', true).id,
@@ -484,18 +485,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const config = getConfig(interaction.guild.id);
     if (!config) {
       if (interaction.isRepliable()) {
-        await interaction.reply({ content: 'Un administrador debe ejecutar `/configurar` primero.', ephemeral: true });
+        await interaction.reply({ content: 'Un administrador debe ejecutar `/configurar` primero.', flags: MessageFlags.Ephemeral });
       }
       return;
     }
 
     if (interaction.isChatInputCommand() && interaction.commandName === 'wl') {
       if (!ticketOwnerId(interaction.channel)) {
-        await interaction.reply({ content: 'Este comando solo funciona dentro de un ticket.', ephemeral: true });
+        await interaction.reply({ content: 'Este comando solo funciona dentro de un ticket.', flags: MessageFlags.Ephemeral });
         return;
       }
       if (!interaction.member.roles.cache.has(config.staffRoleId)) {
-        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede usar WL.', ephemeral: true });
+        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede usar WL.', flags: MessageFlags.Ephemeral });
         return;
       }
       await interaction.showModal(wlModal());
@@ -503,7 +504,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (interaction.isButton() && interaction.customId === 'ticket:create') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const existing = interaction.guild.channels.cache.find(
         (channel) => channel.type === ChannelType.GuildText && ticketOwnerId(channel) === interaction.user.id,
@@ -568,7 +569,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton() && interaction.customId === 'wl:open') {
       if (!ticketOwnerId(interaction.channel) || !interaction.member.roles.cache.has(config.staffRoleId)) {
-        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede abrir este formulario.', ephemeral: true });
+        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede abrir este formulario.', flags: MessageFlags.Ephemeral });
         return;
       }
       await interaction.showModal(wlModal());
@@ -577,13 +578,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isModalSubmit() && interaction.customId === 'wl:submit') {
       if (!ticketOwnerId(interaction.channel) || !interaction.member.roles.cache.has(config.staffRoleId)) {
-        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede enviar este formulario.', ephemeral: true });
+        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede enviar este formulario.', flags: MessageFlags.Ephemeral });
         return;
       }
 
       const logChannel = await interaction.guild.channels.fetch(config.logChannelId);
       if (!logChannel?.isTextBased()) {
-        await interaction.reply({ content: 'El canal de registros no está disponible.', ephemeral: true });
+        await interaction.reply({ content: 'El canal de registros no está disponible.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -630,14 +631,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       await interaction.reply({
         content: 'Formulario enviado. El ticket está pendiente de whitelist y ha quedado bloqueado.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
     if (interaction.isButton() && interaction.customId === 'ticket:close') {
       if (!canCloseTicket(interaction.member, interaction.channel, config)) {
-        await interaction.reply({ content: 'No tienes permiso para cerrar este ticket.', ephemeral: true });
+        await interaction.reply({ content: 'No tienes permiso para cerrar este ticket.', flags: MessageFlags.Ephemeral });
         return;
       }
 
@@ -648,7 +649,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   } catch (error) {
     console.error('Error procesando una interacción:', error);
-    const response = { content: 'Ha ocurrido un error. Revisa la configuración y los permisos del bot.', ephemeral: true };
+    const response = {
+      content: 'Ha ocurrido un error. Revisa la configuración y los permisos del bot.',
+      flags: MessageFlags.Ephemeral,
+    };
     if (interaction.deferred || interaction.replied) {
       await interaction.followUp(response).catch(() => {});
     } else if (interaction.isRepliable()) {
