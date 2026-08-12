@@ -91,25 +91,15 @@ function openTicketButton() {
 }
 
 function ticketControls(config) {
-  const row = new ActionRowBuilder().addComponents(
+  if (!config.closeButton) return null;
+
+  return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId('wl:open')
-      .setLabel('Formulario WL')
-      .setEmoji('📝')
-      .setStyle(ButtonStyle.Success),
+      .setCustomId('ticket:close')
+      .setLabel('Cerrar ticket')
+      .setEmoji('🔒')
+      .setStyle(ButtonStyle.Danger),
   );
-
-  if (config.closeButton) {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId('ticket:close')
-        .setLabel('Cerrar ticket')
-        .setEmoji('🔒')
-        .setStyle(ButtonStyle.Danger),
-    );
-  }
-
-  return row;
 }
 
 function wlButton() {
@@ -215,8 +205,7 @@ async function publishPanel(guild, config) {
 const commands = [
   new SlashCommandBuilder()
     .setName('wl')
-    .setDescription('Abre el formulario WL dentro de un ticket')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .setDescription('Abre el formulario WL dentro de un ticket'),
   new SlashCommandBuilder()
     .setName('configurar')
     .setDescription('Configura y publica el sistema de tickets (solo propietario)')
@@ -374,8 +363,8 @@ client.on(Events.MessageCreate, async (message) => {
       await message.reply('Este comando solo se puede usar dentro de un ticket.');
       return;
     }
-    if (!isAdministrator(message.member)) {
-      await message.reply('Solo los administradores pueden usar `?wl`.');
+    if (!message.member.roles.cache.has(config.staffRoleId)) {
+      await message.reply('Solo el rol encargado de los tickets puede usar `?wl`.');
       return;
     }
 
@@ -470,7 +459,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         panelTitle: interaction.options.getString('titulo_panel') ?? 'Soporte',
         ticketMessage:
           interaction.options.getString('mensaje_ticket') ??
-          'Explica aquí lo que necesitas. Para registrar una WL usa `?wl`, `/wl` o el botón.',
+          'Explica aquí lo que necesitas. El equipo puede registrar una WL usando `?wl` o `/wl`.',
         closeButton: interaction.options.getBoolean('boton_cerrar') ?? true,
         ownerCanClose: interaction.options.getBoolean('usuario_puede_cerrar') ?? true,
       };
@@ -505,8 +494,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.reply({ content: 'Este comando solo funciona dentro de un ticket.', ephemeral: true });
         return;
       }
-      if (!isAdministrator(interaction.member)) {
-        await interaction.reply({ content: 'Solo los administradores pueden usar WL.', ephemeral: true });
+      if (!interaction.member.roles.cache.has(config.staffRoleId)) {
+        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede usar WL.', ephemeral: true });
         return;
       }
       await interaction.showModal(wlModal());
@@ -565,10 +554,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setTitle('Ticket abierto')
         .setDescription(`Hola ${interaction.user}, ${config.ticketMessage}`);
 
+      const controls = ticketControls(config);
+
       await channel.send({
         content: `${interaction.user} <@&${config.staffRoleId}>`,
         embeds: [embed],
-        components: [ticketControls(config)],
+        components: controls ? [controls] : [],
         allowedMentions: { users: [interaction.user.id], roles: [config.staffRoleId] },
       });
       await interaction.editReply(`Tu ticket se ha creado: ${channel}`);
@@ -576,8 +567,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (interaction.isButton() && interaction.customId === 'wl:open') {
-      if (!ticketOwnerId(interaction.channel) || !isAdministrator(interaction.member)) {
-        await interaction.reply({ content: 'Solo los administradores pueden abrir este formulario.', ephemeral: true });
+      if (!ticketOwnerId(interaction.channel) || !interaction.member.roles.cache.has(config.staffRoleId)) {
+        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede abrir este formulario.', ephemeral: true });
         return;
       }
       await interaction.showModal(wlModal());
@@ -585,8 +576,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (interaction.isModalSubmit() && interaction.customId === 'wl:submit') {
-      if (!ticketOwnerId(interaction.channel) || !isAdministrator(interaction.member)) {
-        await interaction.reply({ content: 'Solo los administradores pueden enviar este formulario.', ephemeral: true });
+      if (!ticketOwnerId(interaction.channel) || !interaction.member.roles.cache.has(config.staffRoleId)) {
+        await interaction.reply({ content: 'Solo el rol encargado de los tickets puede enviar este formulario.', ephemeral: true });
         return;
       }
 
